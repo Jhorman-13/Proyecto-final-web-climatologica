@@ -1,6 +1,8 @@
-import os 
-from flask import Flask, render_template, jsonify   
+import os
+from flask import Flask, render_template, jsonify, request
 from flask_pymongo import PyMongo
+from datetime import datetime
+
 from dotenv import load_dotenv
 
 
@@ -8,6 +10,7 @@ from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 
 load_dotenv(dotenv_path)
+
 
 MONGO_HOST = os.getenv('MONGO_HOST', 'mogli')
 MONGO_PORT = os.getenv('MONGO_PORT', '8081')
@@ -48,7 +51,7 @@ def insert_data():
     if sensor1_collection is not None:
         try:
             
-            dato_sensor = {"sensor": "temperatura_prueba", "valor": 2.1, "unidad": "C"}
+            dato_sensor = {"sensor": "temperatura_cali", "valor": 28, "unidad": "C"}
             # Insertamos el dato en la colección 'sensor1'
             result = sensor1_collection.insert_one(dato_sensor)
             return jsonify({
