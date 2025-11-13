@@ -2,70 +2,77 @@ import os
 from flask import Flask, render_template, jsonify, request
 from flask_pymongo import PyMongo
 from datetime import datetime
-
 from dotenv import load_dotenv
 
-
-# Definimos la ruta al archivo .env
+# Cargar archivo .env
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-
 load_dotenv(dotenv_path)
 
-
-MONGO_HOST = os.getenv('MONGO_HOST', 'mogli')
-MONGO_PORT = os.getenv('MONGO_PORT', '8081')
-MONGO_DB = os.getenv('MONGO_DB', 'proyecto_db')
-MONGO_USER = os.getenv('MONGO_USER', 'admin')
-MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '1234PA*')
-
+# Variables de conexión
 MONGO_URI = os.getenv('MONGO_URI')
 
-#from flask_mongo import 
 app = Flask(__name__)
 app.config["MONGO_URI"] = MONGO_URI
 
-
 try:
     mongo = PyMongo(app)
-    
-    sensor1_collection = mongo.db.sensor 
-    print("Conexión a MongoDB y colección 'sensor1' establecida.")
-
-    sensor1_collection.find_one()
-    print("Prueba de lectura a la colección 'sensor1' exitosa.")
+    sensor_collection = mongo.db.sensor
+    print("✅ Conexión a MongoDB establecida correctamente.")
 except Exception as e:
-    print(f"Error al conectar o interactuar con MongoDB: {e}")
+    print(f"❌ Error al conectar a MongoDB: {e}")
     mongo = None
-    sensor1_collection = None
+    sensor_collection = None
+
 
 @app.route('/')
 def index():
-    return "Hello, World!"
+    return "API conectada correctamente."
 
-@app.route('/archivo')
-def archivo():
-    return render_template('archivo.html')
 
-@app.route('/insert')
+# 🔹 Endpoint para insertar datos (POST)
+@app.route('/insert', methods=['POST'])
 def insert_data():
-    if sensor1_collection is not None:
+    if sensor_collection is not None:
         try:
-            
-            dato_sensor = {"sensor": "temperatura_cali", "valor": 28, "unidad": "C"}
-            # Insertamos el dato en la colección 'sensor1'
-            result = sensor1_collection.insert_one(dato_sensor)
+            data = request.get_json()
+
+            # Validación básica
+            if not data or not all(k in data for k in ("ts", "value", "sensor")):
+                return jsonify({"error": "Faltan campos en el JSON. Se requieren: ts, value, sensor"}), 400
+
+            # Agregamos una marca de tiempo automática del servidor
+            data["fecha_servidor"] = datetime.now()
+
+            result = sensor_collection.insert_one(data)
             return jsonify({
-                "mensaje": "Dato de prueba agregado exitosamente a 'sensor1'",
+                "mensaje": "✅ Dato agregado exitosamente.",
                 "id": str(result.inserted_id)
-            })
+            }), 201
         except Exception as e:
             return jsonify({"error": f"Error al insertar en la base de datos: {e}"}), 500
     else:
         return jsonify({"error": "La conexión a la base de datos no está establecida."}), 500
-    
-    
+
+
+# 🔹 Endpoint para obtener los datos (GET)
+@app.route('/get_datos', methods=['GET'])
+def get_datos():
+    if sensor_collection is not None:
+        try:
+            datos = list(sensor_collection.find())
+
+            # Convertir los campos para que sean serializables
+            for d in datos:
+                d["_id"] = str(d["_id"])
+                if "fecha_servidor" in d:
+                    d["fecha_servidor"] = d["fecha_servidor"].strftime("%Y-%m-%d %H:%M:%S")
+
+            return jsonify(datos), 200
+        except Exception as e:
+            return jsonify({"error": f"Error al obtener los datos: {e}"}), 500
+    else:
+        return jsonify({"error": "La conexión a la base de datos no está establecida."}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-
-
