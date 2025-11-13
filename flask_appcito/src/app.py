@@ -55,7 +55,7 @@ def insert_data():
 
 
 # 🔹 Endpoint para obtener los datos (GET)
-@app.route('/get_datos', methods=['GET'])
+@app.route('/get_datos', methods=['POST'])
 def get_datos():
     if sensor_collection is not None:
         try:
